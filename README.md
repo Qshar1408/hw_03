@@ -42,6 +42,46 @@
 ### Задание 2
 
 1. Создайте файл count-vm.tf. Опишите в нём создание двух **одинаковых** ВМ  web-1 и web-2 (не web-0 и web-1) с минимальными параметрами, используя мета-аргумент **count loop**. Назначьте ВМ созданную в первом задании группу безопасности.(как это сделать узнайте в документации провайдера yandex/compute_instance )
+
+```bash
+data "yandex_compute_image" "ubuntu" {
+  family = "ubuntu-2004-lts"
+}
+resource "yandex_compute_instance" "web" {
+  name        = "web-${count.index+1}"
+  platform_id = "standard-v1"
+
+  count = 2
+
+  resources {
+    cores         = 2
+    memory        = 1
+    core_fraction = 5
+  }
+  boot_disk {
+    initialize_params {
+      image_id = data.yandex_compute_image.ubuntu.image_id
+    }
+  }
+  scheduling_policy {
+    preemptible = true
+  }
+  network_interface {
+    subnet_id = yandex_vpc_subnet.develop.id
+    nat       = true
+    security_group_ids = [
+        yandex_vpc_security_group.example.id
+    ]
+  }
+
+  metadata = {
+    serial-port-enable = 1
+    ssh-keys           = "ubuntu:${var.vms_ssh_root_key}"
+  }
+
+}
+```
+
 2. Создайте файл for_each-vm.tf. Опишите в нём создание двух ВМ для баз данных с именами "main" и "replica" **разных** по cpu/ram/disk_volume , используя мета-аргумент **for_each loop**. Используйте для обеих ВМ одну общую переменную типа:
 ```
 variable "each_vm" {
@@ -49,9 +89,90 @@ variable "each_vm" {
 }
 ```  
 При желании внесите в переменную все возможные параметры.
-4. ВМ из пункта 2.1 должны создаваться после создания ВМ из пункта 2.2.
-5. Используйте функцию file в local-переменной для считывания ключа ~/.ssh/id_rsa.pub и его последующего использования в блоке metadata, взятому из ДЗ 2.
-6. Инициализируйте проект, выполните код.
+
+```bash
+data "yandex_compute_image" "imageOS" {
+  family = "ubuntu-2004-lts"
+}
+
+variable "vm_resources" {
+    type = list(object({
+        vm_name = string
+        cpu = number
+        ram = number
+        disk = number
+            }))
+    default = [
+        {
+        vm_name = "main"
+        cpu = 2
+        ram = 2
+        disk = 5
+        platform_id = "standard-v1"
+        },
+        {
+        vm_name = "replica"
+        cpu = 2
+        ram = 2
+        disk = 10
+        platform_id = "standard-v1"    
+        },
+    ]
+}
+
+locals {
+    ssh-keys = file("~/.ssh/digma.pub")
+}
+
+resource "yandex_compute_instance" "for_each" {
+    depends_on = [yandex_compute_instance.web]
+    for_each = { for i in var.vm_resources : i.vm_name => i }
+    name= each.value.vm_name
+
+    platform_id = "standard-v1"
+
+    resources {
+        cores = each.value.cpu
+        memory = each.value.ram
+    }
+
+boot_disk {
+    initialize_params {
+      image_id = data.yandex_compute_image.ubuntu.image_id
+      size = each.value.disk
+    }
+  }
+
+    metadata = {
+    ssh-keys = "ubuntu:${local.ssh-keys}"
+    serial-port-enable = "1"
+  }
+
+
+    network_interface {
+    subnet_id = yandex_vpc_subnet.develop.id
+    nat       = true
+    security_group_ids = [
+      yandex_vpc_security_group.example.id
+    ]
+    }
+  scheduling_policy {
+    preemptible = true
+  }
+}
+```
+
+3. ВМ из пункта 2.1 должны создаваться после создания ВМ из пункта 2.2.
+
+![hw_03](https://github.com/Qshar1408/hw_03/blob/main/img/hw_03_005.png)
+
+4. Используйте функцию file в local-переменной для считывания ключа ~/.ssh/id_rsa.pub и его последующего использования в блоке metadata, взятому из ДЗ 2.
+
+![hw_03](https://github.com/Qshar1408/hw_03/blob/main/img/hw_03_006.png)
+
+5. Инициализируйте проект, выполните код.
+
+![hw_03](https://github.com/Qshar1408/hw_03/blob/main/img/hw_03_004.png)
 
 ------
 
