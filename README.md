@@ -31,6 +31,12 @@
 
 Приложите скриншот входящих правил «Группы безопасности» в ЛК Yandex Cloud .
 
+![hw_03](https://github.com/Qshar1408/hw_03/blob/main/img/hw_02_001.png)
+
+![hw_03](https://github.com/Qshar1408/hw_03/blob/main/img/hw_02_002.png)
+
+![hw_03](https://github.com/Qshar1408/hw_03/blob/main/img/hw_02_003.png)
+
 ------
 
 ### Задание 2
